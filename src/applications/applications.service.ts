@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Application } from './applications.entity';
+import { Category } from '../categories/categories.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -10,6 +11,8 @@ export class ApplicationsService {
   constructor(
     @InjectRepository(Application)
     private applicationsRepository: Repository<Application>,
+    @InjectRepository(Category)
+    private categoriesRepository: Repository<Category>, // INJECT CATEGORY REPOSITORY
   ) {}
 
   async findAll() {
@@ -18,8 +21,13 @@ export class ApplicationsService {
         relations: ['category'],
         order: { id: 'ASC' },
       });
+      
+      // Debug log untuk memastikan data terambil
+      console.log('Applications found:', applications.length);
+      
       return applications;
     } catch (error) {
+      console.error('Error in findAll:', error);
       throw new HttpException(
         'Failed to retrieve applications',
         HttpStatus.INTERNAL_SERVER_ERROR,
