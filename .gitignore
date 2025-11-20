@@ -4,7 +4,6 @@
 /build
 
 public/uploads/
-*.exe
 
 # Logs
 logs
