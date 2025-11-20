@@ -3,6 +3,9 @@
 /node_modules
 /build
 
+public/uploads/
+*.exe
+
 # Logs
 logs
 *.log
