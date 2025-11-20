@@ -8,6 +8,12 @@ import { UsersService } from './users/users.service';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { User } from './users/users.entity';
+import { ApplicationsModule } from './applications/applications.module';
+import { CategoriesModule } from './categories/categories.module';
+import { IconsModule } from './icons/icons.module';
+import { Application } from './applications/applications.entity';
+import { Category } from './categories/categories.entity';
+import { Icon } from './icons/icons.entity';
 
 @Module({
   imports: [
@@ -21,10 +27,13 @@ import { User } from './users/users.entity';
       username: process.env.DB_USERNAME ?? 'postgres',
       password: process.env.DB_PASSWORD ?? 'Sukses12345',
       database: process.env.DB_NAME ?? 'appssmoe',
-      entities: [User],
+      entities: [User, Application, Category, Icon],
       synchronize: process.env.NODE_ENV !== 'production',
     }),
     TypeOrmModule.forFeature([User]),
+    ApplicationsModule,
+    CategoriesModule,
+    IconsModule,
   ],
   controllers: [AppController, UsersController, AuthController],
   providers: [AppService, UsersService, AuthService],

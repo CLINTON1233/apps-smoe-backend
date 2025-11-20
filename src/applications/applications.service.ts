@@ -97,6 +97,9 @@ export class ApplicationsService {
         title: applicationData.title.trim(),
         full_name: applicationData.fullName.trim(),
         category_id: parseInt(applicationData.categoryId),
+        icon_id: applicationData.iconId
+          ? parseInt(applicationData.iconId)
+          : null,
         version: applicationData.version || '1.0.0',
         description: applicationData.description || '',
         ...fileData,
@@ -105,12 +108,11 @@ export class ApplicationsService {
       const savedApplication =
         await this.applicationsRepository.save(newApplication);
 
-      // SOLUSI: Langsung return savedApplication dan load relations secara manual jika perlu
-      // Atau gunakan approach yang lebih sederhana
+      // Return application with relations
       const applicationWithRelations =
         await this.applicationsRepository.findOne({
           where: { id: savedApplication.id },
-          relations: ['category'],
+          relations: ['category', 'icon'],
         });
 
       if (!applicationWithRelations) {
@@ -188,6 +190,9 @@ export class ApplicationsService {
         category_id: applicationData.categoryId
           ? parseInt(applicationData.categoryId)
           : existingApplication.category_id,
+        icon_id: applicationData.iconId
+          ? parseInt(applicationData.iconId)
+          : existingApplication.icon_id,
         version: applicationData.version || existingApplication.version,
         description:
           applicationData.description || existingApplication.description,
@@ -197,7 +202,7 @@ export class ApplicationsService {
       // Return updated application dengan relations
       const updatedApplication = await this.applicationsRepository.findOne({
         where: { id },
-        relations: ['category'],
+        relations: ['category', 'icon'],
       });
 
       if (!updatedApplication) {
