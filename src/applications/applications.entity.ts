@@ -8,6 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Category } from '../categories/categories.entity';
+import { Icon } from '../icons/icons.entity';
 
 @Entity('applications')
 export class Application {
@@ -20,15 +21,11 @@ export class Application {
   @Column({ name: 'full_name', type: 'varchar', length: 500 })
   full_name: string;
 
-  // HAPUS BAGIAN INI
-  // @Column({ type: 'varchar', length: 500 })
-  // url: string;
-
   @Column({ name: 'category_id', type: 'int' })
   category_id: number;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  icon: string;
+  @Column({ name: 'icon_id', type: 'int', nullable: true })
+  icon_id: number;
 
   @Column({ name: 'file_name', type: 'varchar', length: 255, nullable: true })
   file_name: string;
@@ -67,4 +64,8 @@ export class Application {
   @ManyToOne(() => Category, (category) => category.applications)
   @JoinColumn({ name: 'category_id' })
   category: Category;
+
+  @ManyToOne(() => Icon, (icon) => icon.id)
+  @JoinColumn({ name: 'icon_id' })
+  icon: Icon;
 }

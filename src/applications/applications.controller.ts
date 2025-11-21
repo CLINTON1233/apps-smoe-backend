@@ -140,12 +140,19 @@ export class ApplicationsController {
     }
   }
 
-  @Post(':id/download')
+  @Get(':id/download')
   async downloadApplication(@Param('id') id: string, @Res() res: Response) {
     try {
-      const application = await this.applicationsService.incrementDownloadCount(
-        parseInt(id),
-      );
+      console.log(`Download request for application ID: ${id}`);
+
+      const application = await this.applicationsService.findById(parseInt(id));
+
+      if (!application) {
+        return res.status(HttpStatus.NOT_FOUND).json({
+          status: 'error',
+          message: 'Application not found',
+        });
+      }
 
       if (!application.file_path) {
         return res.status(HttpStatus.NOT_FOUND).json({
@@ -154,27 +161,51 @@ export class ApplicationsController {
         });
       }
 
+      // PERBAIKAN: Gunakan path yang benar
       const filePath = path.join(
         process.cwd(),
         'public',
         application.file_path,
       );
+      console.log(`Looking for file at: ${filePath}`);
 
       if (!fs.existsSync(filePath)) {
+        console.log('File not found at path:', filePath);
         return res.status(HttpStatus.NOT_FOUND).json({
           status: 'error',
-          message: 'File not found',
+          message: 'File not found on server',
         });
       }
 
+      // Increment download count
+      await this.applicationsService.incrementDownloadCount(parseInt(id));
+
+      // Set headers untuk download
+      const fileName = application.file_name || `application_${id}.download`;
+
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename="${application.file_name}"`,
+        `attachment; filename="${encodeURIComponent(fileName)}"`,
       );
       res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Length', application.file_size?.toString() || '0');
 
-      return res.sendFile(filePath);
+      // Stream file ke response
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+
+      // Handle stream errors
+      fileStream.on('error', (error) => {
+        console.error('File stream error:', error);
+        if (!res.headersSent) {
+          return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+            status: 'error',
+            message: 'Error streaming file',
+          });
+        }
+      });
     } catch (error) {
+      console.error('Download error:', error);
       const status = error.getStatus
         ? error.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
