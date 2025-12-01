@@ -9,12 +9,14 @@ async function bootstrap() {
   app.use(bodyParser.json({ limit: '10gb' }));
   app.use(bodyParser.urlencoded({ limit: '10gb', extended: true }));
 
-  // Enable CORS for frontend connection
+  // Enable CORS for frontend connection - TAMBAHKAN PORT 3002
   app.enableCors({
     origin: [
       'http://localhost:3000',
       'http://localhost:3001',
+      'http://localhost:3002', // TAMBAH INI
       'http://127.0.0.1:3000',
+      'http://127.0.0.1:3002', // TAMBAH INI
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
