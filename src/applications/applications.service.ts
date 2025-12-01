@@ -1,8 +1,9 @@
+// src/applications/applications.service.ts
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Application } from './applications.entity';
-import { Category } from '../categories/categories.entity';
+import { Icon } from '../icons/icons.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -11,23 +12,24 @@ export class ApplicationsService {
   constructor(
     @InjectRepository(Application)
     private applicationsRepository: Repository<Application>,
-    @InjectRepository(Category)
-    private categoriesRepository: Repository<Category>, // INJECT CATEGORY REPOSITORY
+    
+    @InjectRepository(Icon)
+    private iconsRepository: Repository<Icon>,
   ) {}
 
   async findAll() {
     try {
       const applications = await this.applicationsRepository.find({
-        relations: ['category'],
+        relations: ['category', 'icon'],
         order: { id: 'ASC' },
       });
       
-      // Debug log untuk memastikan data terambil
-      console.log('Applications found:', applications.length);
-      
-      return applications;
+      // Transform data untuk frontend
+      return applications.map(app => ({
+        ...app,
+        icon: app.icon ? app.icon.icon_key : null
+      }));
     } catch (error) {
-      console.error('Error in findAll:', error);
       throw new HttpException(
         'Failed to retrieve applications',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -39,13 +41,18 @@ export class ApplicationsService {
     try {
       const application = await this.applicationsRepository.findOne({
         where: { id },
-        relations: ['category'],
+        relations: ['category', 'icon'],
       });
 
       if (!application) {
         throw new HttpException('Application not found', HttpStatus.NOT_FOUND);
       }
-      return application;
+
+      // Transform data untuk frontend
+      return {
+        ...application,
+        icon: application.icon ? application.icon.icon_key : null
+      };
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -71,7 +78,23 @@ export class ApplicationsService {
         );
       }
 
-      // Handle file upload
+      // Handle icon selection atau upload
+      let iconId: number | null = null;
+      
+      // Jika iconId diberikan (memilih dari library)
+      if (applicationData.iconId && applicationData.iconId !== 'null' && applicationData.iconId !== '') {
+        const icon = await this.iconsRepository.findOne({
+          where: { id: parseInt(applicationData.iconId) },
+        });
+        
+        if (!icon) {
+          throw new HttpException('Selected icon not found', HttpStatus.NOT_FOUND);
+        }
+        
+        iconId = icon.id;
+      }
+
+      // Handle file upload (installation file)
       const fileData: any = {};
       if (file) {
         const uploadsDir = path.join(
@@ -105,23 +128,19 @@ export class ApplicationsService {
         title: applicationData.title.trim(),
         full_name: applicationData.fullName.trim(),
         category_id: parseInt(applicationData.categoryId),
-        icon_id: applicationData.iconId
-          ? parseInt(applicationData.iconId)
-          : null,
+        icon_id: iconId, // Bisa null atau number
         version: applicationData.version || '1.0.0',
         description: applicationData.description || '',
         ...fileData,
       } as Partial<Application>);
 
-      const savedApplication =
-        await this.applicationsRepository.save(newApplication);
+      const savedApplication = await this.applicationsRepository.save(newApplication);
 
       // Return application with relations
-      const applicationWithRelations =
-        await this.applicationsRepository.findOne({
-          where: { id: savedApplication.id },
-          relations: ['category', 'icon'],
-        });
+      const applicationWithRelations = await this.applicationsRepository.findOne({
+        where: { id: savedApplication.id },
+        relations: ['category', 'icon'],
+      });
 
       if (!applicationWithRelations) {
         throw new HttpException(
@@ -151,6 +170,23 @@ export class ApplicationsService {
 
       if (!existingApplication) {
         throw new HttpException('Application not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Handle icon update
+      let iconId: number | null = existingApplication.icon_id;
+      
+      if (applicationData.iconId === 'null' || applicationData.iconId === '') {
+        iconId = null;
+      } else if (applicationData.iconId) {
+        const icon = await this.iconsRepository.findOne({
+          where: { id: parseInt(applicationData.iconId) },
+        });
+        
+        if (!icon) {
+          throw new HttpException('Selected icon not found', HttpStatus.NOT_FOUND);
+        }
+        
+        iconId = icon.id;
       }
 
       // Handle file upload if new file provided
@@ -198,9 +234,7 @@ export class ApplicationsService {
         category_id: applicationData.categoryId
           ? parseInt(applicationData.categoryId)
           : existingApplication.category_id,
-        icon_id: applicationData.iconId
-          ? parseInt(applicationData.iconId)
-          : existingApplication.icon_id,
+        icon_id: iconId,
         version: applicationData.version || existingApplication.version,
         description:
           applicationData.description || existingApplication.description,
@@ -314,6 +348,10 @@ export class ApplicationsService {
       '.7z': 'Archive',
       '.tar': 'Archive',
       '.gz': 'Archive',
+      '.app': 'Mac OS Application',
+      '.dll': 'Windows DLL',
+      '.bin': 'Binary File',
+      '.iso': 'Disk Image',
     };
 
     return typeMap[fileExt.toLowerCase()] || 'Unknown';

@@ -3,7 +3,6 @@ import {
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
-  UpdateDateColumn,
 } from 'typeorm';
 
 @Entity('icons')
@@ -11,16 +10,19 @@ export class Icon {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'varchar', length: 100 })
   name: string;
 
-  @Column({ type: 'varchar', length: 255 })
-  value: string;
+  @Column({ name: 'icon_key', type: 'varchar', length: 100 })
+  icon_key: string;
 
-  @Column({ type: 'varchar', length: 50 })
+  @Column({ type: 'varchar', length: 50, default: 'General' })
+  category: string;
+
+  @Column({ type: 'varchar', length: 20, default: 'system' })
   type: string; // 'system' atau 'custom'
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
+  @Column({ name: 'file_path', type: 'varchar', length: 500, nullable: true })
   file_path: string;
 
   @Column({ name: 'file_name', type: 'varchar', length: 255, nullable: true })
@@ -31,7 +33,4 @@ export class Icon {
 
   @CreateDateColumn({ name: 'created_at' })
   created_at: Date;
-
-  @UpdateDateColumn({ name: 'updated_at' })
-  updated_at: Date;
 }

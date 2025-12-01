@@ -1,3 +1,4 @@
+// src/applications/applications.entity.ts
 import {
   Entity,
   Column,
@@ -25,7 +26,7 @@ export class Application {
   category_id: number;
 
   @Column({ name: 'icon_id', type: 'int', nullable: true })
-  icon_id: number;
+  icon_id: number | null; // PERBAIKAN DI SINI
 
   @Column({ name: 'file_name', type: 'varchar', length: 255, nullable: true })
   file_name: string;
@@ -65,7 +66,7 @@ export class Application {
   @JoinColumn({ name: 'category_id' })
   category: Category;
 
-  @ManyToOne(() => Icon, (icon) => icon.id)
+  @ManyToOne(() => Icon, (icon) => icon.id, { nullable: true }) // PERBAIKAN DI SINI
   @JoinColumn({ name: 'icon_id' })
-  icon: Icon;
+  icon: Icon | null; // PERBAIKAN DI SINI
 }

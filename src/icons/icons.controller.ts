@@ -9,6 +9,7 @@ import {
   UseInterceptors,
   UploadedFile,
   Body,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
@@ -19,9 +20,15 @@ export class IconsController {
   constructor(private readonly iconsService: IconsService) {}
 
   @Get()
-  async getAllIcons(@Res() res: Response) {
+  async getAllIcons(@Res() res: Response, @Query('search') search?: string) {
     try {
-      const icons = await this.iconsService.findAll();
+      let icons;
+      if (search) {
+        icons = await this.iconsService.searchIcons(search);
+      } else {
+        icons = await this.iconsService.findAll();
+      }
+      
       return res.status(HttpStatus.OK).json({
         status: 'success',
         data: icons,
@@ -38,7 +45,7 @@ export class IconsController {
     }
   }
 
-  @Post('system')
+  @Get('system/create')
   async createSystemIcons(@Res() res: Response) {
     try {
       const result = await this.iconsService.createSystemIcons();
@@ -58,7 +65,7 @@ export class IconsController {
     }
   }
 
-  @Post('custom')
+  @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async createCustomIcon(
     @UploadedFile() file: Express.Multer.File,
@@ -73,14 +80,33 @@ export class IconsController {
         });
       }
 
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/webp'];
+      if (!allowedTypes.includes(file.mimetype)) {
+        return res.status(HttpStatus.BAD_REQUEST).json({
+          status: 'error',
+          message: 'Only image files are allowed (JPEG, PNG, SVG, WebP)',
+        });
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        return res.status(HttpStatus.BAD_REQUEST).json({
+          status: 'error',
+          message: 'File size must be less than 5MB',
+        });
+      }
+
       const icon = await this.iconsService.createCustomIcon(
         file,
-        body.name || file.originalname,
+        body.name,
+        body.category,
       );
       return res.status(HttpStatus.CREATED).json({
         status: 'success',
         data: icon,
-        message: 'Custom icon created successfully',
+        message: 'Custom icon uploaded successfully',
       });
     } catch (error) {
       const status = error.getStatus
@@ -88,7 +114,7 @@ export class IconsController {
         : HttpStatus.INTERNAL_SERVER_ERROR;
       return res.status(status).json({
         status: 'error',
-        message: error.message || 'Failed to create custom icon',
+        message: error.message || 'Failed to upload custom icon',
       });
     }
   }
@@ -109,6 +135,26 @@ export class IconsController {
       return res.status(status).json({
         status: 'error',
         message: error.message || 'Failed to delete icon',
+      });
+    }
+  }
+
+  @Get(':id')
+  async getIconById(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const icon = await this.iconsService.findById(parseInt(id));
+      return res.status(HttpStatus.OK).json({
+        status: 'success',
+        data: icon,
+        message: 'Icon retrieved successfully',
+      });
+    } catch (error) {
+      const status = error.getStatus
+        ? error.getStatus()
+        : HttpStatus.INTERNAL_SERVER_ERROR;
+      return res.status(status).json({
+        status: 'error',
+        message: error.message || 'Failed to retrieve icon',
       });
     }
   }
