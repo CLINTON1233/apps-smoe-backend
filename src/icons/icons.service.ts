@@ -47,6 +47,8 @@ export class IconsService {
     }
   }
 
+  
+
   async createSystemIcons() {
     try {
       const systemIcons = [
@@ -139,50 +141,57 @@ export class IconsService {
     }
   }
 
-  async createCustomIcon(file: Express.Multer.File, name: string, category: string = 'Custom') {
-    try {
-      if (!file) {
-        throw new HttpException('File is required', HttpStatus.BAD_REQUEST);
-      }
-
-      const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'icons');
-
-      // Ensure upload directory exists
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-
-      // Generate unique filename
-      const fileExt = path.extname(file.originalname);
-      const fileName = `icon-${Date.now()}${fileExt}`;
-      const filePath = path.join(uploadsDir, fileName);
-
-      // Save file
-      fs.writeFileSync(filePath, file.buffer);
-
-      // Create icon record
-      const icon = this.iconsRepository.create({
-        name: name || file.originalname.replace(/\.[^/.]+$/, ""),
-        icon_key: fileName, // For custom icons, use filename as key
-        category: category || 'Custom',
-        type: 'custom',
-        file_path: `uploads/icons/${fileName}`,
-        file_name: file.originalname,
-        file_size: file.size,
-      });
-
-      const savedIcon = await this.iconsRepository.save(icon);
-      return savedIcon;
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      throw new HttpException(
-        'Failed to create custom icon',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+async createCustomIcon(file: Express.Multer.File, name: string, category: string = 'Custom') {
+  try {
+    if (!file) {
+      throw new HttpException('File is required', HttpStatus.BAD_REQUEST);
     }
+
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'icons');
+
+    // Ensure upload directory exists
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    // Generate unique filename
+    const fileExt = path.extname(file.originalname);
+    const fileName = `icon-${Date.now()}${fileExt}`;
+    const filePath = path.join(uploadsDir, fileName);
+
+    // Save file
+    fs.writeFileSync(filePath, file.buffer);
+
+    const iconKey = fileName; 
+
+    // Create icon record
+    const icon = this.iconsRepository.create({
+      name: name || file.originalname.replace(/\.[^/.]+$/, ""),
+      icon_key: iconKey,
+      category: category || 'Custom',
+      type: 'custom',
+      file_path: `uploads/icons/${fileName}`,
+      file_name: file.originalname,
+      file_size: file.size,
+    });
+
+    const savedIcon = await this.iconsRepository.save(icon);
+    
+    // PERBAIKAN: Return data yang lengkap
+    return {
+      ...savedIcon,
+      icon_key: iconKey 
+    };
+  } catch (error) {
+    if (error instanceof HttpException) {
+      throw error;
+    }
+    throw new HttpException(
+      'Failed to create custom icon',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
   }
+}
 
   async delete(id: number) {
     try {

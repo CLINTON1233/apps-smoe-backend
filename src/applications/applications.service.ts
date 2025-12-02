@@ -16,255 +16,289 @@ export class ApplicationsService {
     @InjectRepository(Icon)
     private iconsRepository: Repository<Icon>,
   ) {}
+async findAll() {
+  try {
+    const applications = await this.applicationsRepository.find({
+      relations: ['category', 'icon'],
+      order: { id: 'ASC' },
+    });
+    
+    // PERBAIKAN: Jangan transform data icon
+    return applications.map(app => ({
+      ...app,
+      // Jangan ubah icon object
+    }));
+  } catch (error) {
+    throw new HttpException(
+      'Failed to retrieve applications',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
+}
 
-  async findAll() {
-    try {
-      const applications = await this.applicationsRepository.find({
-        relations: ['category', 'icon'],
-        order: { id: 'ASC' },
-      });
-      
-      // Transform data untuk frontend
-      return applications.map(app => ({
-        ...app,
-        icon: app.icon ? app.icon.icon_key : null
-      }));
-    } catch (error) {
+async findById(id: number) {
+  try {
+    const application = await this.applicationsRepository.findOne({
+      where: { id },
+      relations: ['category', 'icon'],
+    });
+
+    if (!application) {
+      throw new HttpException('Application not found', HttpStatus.NOT_FOUND);
+    }
+
+    // PERBAIKAN: Jangan transform icon
+    return application;
+  } catch (error) {
+    if (error instanceof HttpException) {
+      throw error;
+    }
+    throw new HttpException(
+      'Failed to retrieve application',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
+}
+
+// PERBAIKAN: Ganti fungsi create() dan update() di applications.service.ts
+async create(applicationData: any, file?: Express.Multer.File) {
+  try {
+    // Validasi required fields
+    if (
+      !applicationData.title ||
+      !applicationData.fullName ||
+      !applicationData.categoryId
+    ) {
       throw new HttpException(
-        'Failed to retrieve applications',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        'Title, full name, and category are required',
+        HttpStatus.BAD_REQUEST,
       );
     }
-  }
 
-  async findById(id: number) {
-    try {
-      const application = await this.applicationsRepository.findOne({
-        where: { id },
-        relations: ['category', 'icon'],
-      });
+    console.log('CREATE APPLICATION DATA:', applicationData);
+    console.log('Icon ID from form:', applicationData.iconId);
 
-      if (!application) {
-        throw new HttpException('Application not found', HttpStatus.NOT_FOUND);
-      }
-
-      // Transform data untuk frontend
-      return {
-        ...application,
-        icon: application.icon ? application.icon.icon_key : null
-      };
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      throw new HttpException(
-        'Failed to retrieve application',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  async create(applicationData: any, file?: Express.Multer.File) {
-    try {
-      // Validasi required fields
-      if (
-        !applicationData.title ||
-        !applicationData.fullName ||
-        !applicationData.categoryId
-      ) {
-        throw new HttpException(
-          'Title, full name, and category are required',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      // Handle icon selection atau upload
-      let iconId: number | null = null;
-      
-      // Jika iconId diberikan (memilih dari library)
-      if (applicationData.iconId && applicationData.iconId !== 'null' && applicationData.iconId !== '') {
+    // Handle icon selection atau upload
+    let iconId: number | null = null;
+    
+    // PERBAIKAN: Handle iconId dengan benar
+    if (applicationData.iconId && applicationData.iconId !== 'null' && applicationData.iconId !== '') {
+      const iconIdNumber = parseInt(applicationData.iconId);
+      if (!isNaN(iconIdNumber) && iconIdNumber > 0) {
+        // Cek apakah icon ada di database
         const icon = await this.iconsRepository.findOne({
-          where: { id: parseInt(applicationData.iconId) },
+          where: { id: iconIdNumber },
         });
         
-        if (!icon) {
-          throw new HttpException('Selected icon not found', HttpStatus.NOT_FOUND);
+        if (icon) {
+          iconId = icon.id;
+          console.log('Icon found:', { id: icon.id, name: icon.name, icon_key: icon.icon_key });
+        } else {
+          console.log('Icon not found with ID:', iconIdNumber);
         }
-        
-        iconId = icon.id;
+      }
+    }
+
+    // Handle file upload (installation file)
+    const fileData: any = {};
+    if (file) {
+      const uploadsDir = path.join(
+        process.cwd(),
+        'public',
+        'uploads',
+        'applications',
+      );
+
+      // Ensure upload directory exists
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
       }
 
-      // Handle file upload (installation file)
-      const fileData: any = {};
-      if (file) {
-        const uploadsDir = path.join(
-          process.cwd(),
-          'public',
-          'uploads',
-          'applications',
-        );
+      // Generate unique filename
+      const fileExt = path.extname(file.originalname);
+      const fileName = `app-${Date.now()}${fileExt}`;
+      const filePath = path.join(uploadsDir, fileName);
 
-        // Ensure upload directory exists
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
-        }
+      // Save file
+      fs.writeFileSync(filePath, file.buffer);
 
-        // Generate unique filename
-        const fileExt = path.extname(file.originalname);
-        const fileName = `app-${Date.now()}${fileExt}`;
-        const filePath = path.join(uploadsDir, fileName);
+      fileData.file_name = file.originalname;
+      fileData.file_path = `uploads/applications/${fileName}`;
+      fileData.file_size = file.size;
+      fileData.file_type = this.getFileType(fileExt);
+    }
 
-        // Save file
-        fs.writeFileSync(filePath, file.buffer);
+    console.log('Creating application with icon_id:', iconId);
 
-        fileData.file_name = file.originalname;
-        fileData.file_path = `uploads/applications/${fileName}`;
-        fileData.file_size = file.size;
-        fileData.file_type = this.getFileType(fileExt);
-      }
+    // Create new application
+    const newApplication = this.applicationsRepository.create({
+      title: applicationData.title.trim(),
+      full_name: applicationData.fullName.trim(),
+      category_id: parseInt(applicationData.categoryId),
+      icon_id: iconId, // Bisa null atau number
+      version: applicationData.version || '1.0.0',
+      description: applicationData.description || '',
+      ...fileData,
+    } as Partial<Application>);
 
-      // Create new application
-      const newApplication = this.applicationsRepository.create({
-        title: applicationData.title.trim(),
-        full_name: applicationData.fullName.trim(),
-        category_id: parseInt(applicationData.categoryId),
-        icon_id: iconId, // Bisa null atau number
-        version: applicationData.version || '1.0.0',
-        description: applicationData.description || '',
-        ...fileData,
-      } as Partial<Application>);
+    const savedApplication = await this.applicationsRepository.save(newApplication);
 
-      const savedApplication = await this.applicationsRepository.save(newApplication);
+    // Return application with relations
+    const applicationWithRelations = await this.applicationsRepository.findOne({
+      where: { id: savedApplication.id },
+      relations: ['category', 'icon'],
+    });
 
-      // Return application with relations
-      const applicationWithRelations = await this.applicationsRepository.findOne({
-        where: { id: savedApplication.id },
-        relations: ['category', 'icon'],
-      });
-
-      if (!applicationWithRelations) {
-        throw new HttpException(
-          'Application not found after creation',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
-
-      return applicationWithRelations;
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
+    if (!applicationWithRelations) {
       throw new HttpException(
-        'Failed to create application',
+        'Application not found after creation',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+
+    console.log('Application created successfully:', {
+      id: applicationWithRelations.id,
+      icon_id: applicationWithRelations.icon_id,
+      icon: applicationWithRelations.icon
+    });
+
+    return applicationWithRelations;
+  } catch (error) {
+    console.error('Error creating application:', error);
+    if (error instanceof HttpException) {
+      throw error;
+    }
+    throw new HttpException(
+      'Failed to create application',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
   }
+}
 
-  async update(id: number, applicationData: any, file?: Express.Multer.File) {
-    try {
-      // Find existing application
-      const existingApplication = await this.applicationsRepository.findOne({
-        where: { id },
-      });
+async update(id: number, applicationData: any, file?: Express.Multer.File) {
+  try {
+    // Find existing application
+    const existingApplication = await this.applicationsRepository.findOne({
+      where: { id },
+    });
 
-      if (!existingApplication) {
-        throw new HttpException('Application not found', HttpStatus.NOT_FOUND);
-      }
+    if (!existingApplication) {
+      throw new HttpException('Application not found', HttpStatus.NOT_FOUND);
+    }
 
-      // Handle icon update
-      let iconId: number | null = existingApplication.icon_id;
-      
-      if (applicationData.iconId === 'null' || applicationData.iconId === '') {
-        iconId = null;
-      } else if (applicationData.iconId) {
+    console.log('UPDATE APPLICATION DATA:', applicationData);
+    console.log('Existing icon_id:', existingApplication.icon_id);
+    console.log('New iconId from form:', applicationData.iconId);
+
+    // Handle icon update
+    let iconId: number | null = existingApplication.icon_id;
+    
+    // PERBAIKAN: Handle icon update dengan benar
+    if (applicationData.iconId === 'null' || applicationData.iconId === '') {
+      iconId = null;
+    } else if (applicationData.iconId && applicationData.iconId !== 'null' && applicationData.iconId !== '') {
+      const iconIdNumber = parseInt(applicationData.iconId);
+      if (!isNaN(iconIdNumber) && iconIdNumber > 0) {
         const icon = await this.iconsRepository.findOne({
-          where: { id: parseInt(applicationData.iconId) },
+          where: { id: iconIdNumber },
         });
         
-        if (!icon) {
-          throw new HttpException('Selected icon not found', HttpStatus.NOT_FOUND);
+        if (icon) {
+          iconId = icon.id;
+          console.log('Updated icon:', { id: icon.id, name: icon.name });
+        } else {
+          console.log('Icon not found with ID:', iconIdNumber);
+          // Jika icon tidak ditemukan, set ke null
+          iconId = null;
         }
-        
-        iconId = icon.id;
       }
+    }
 
-      // Handle file upload if new file provided
-      const fileData: any = {};
-      if (file) {
-        // Delete old file if exists
-        if (existingApplication.file_path) {
-          const oldFilePath = path.join(
-            process.cwd(),
-            'public',
-            existingApplication.file_path,
-          );
-          if (fs.existsSync(oldFilePath)) {
-            fs.unlinkSync(oldFilePath);
-          }
-        }
+    console.log('Updating application with icon_id:', iconId);
 
-        const uploadsDir = path.join(
+    // Handle file upload if new file provided
+    const fileData: any = {};
+    if (file) {
+      // Delete old file if exists
+      if (existingApplication.file_path) {
+        const oldFilePath = path.join(
           process.cwd(),
           'public',
-          'uploads',
-          'applications',
+          existingApplication.file_path,
         );
-
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath);
         }
-
-        const fileExt = path.extname(file.originalname);
-        const fileName = `app-${Date.now()}${fileExt}`;
-        const filePath = path.join(uploadsDir, fileName);
-
-        fs.writeFileSync(filePath, file.buffer);
-
-        fileData.file_name = file.originalname;
-        fileData.file_path = `uploads/applications/${fileName}`;
-        fileData.file_size = file.size;
-        fileData.file_type = this.getFileType(fileExt);
       }
 
-      // Update application data
-      await this.applicationsRepository.update(id, {
-        title: applicationData.title || existingApplication.title,
-        full_name: applicationData.fullName || existingApplication.full_name,
-        category_id: applicationData.categoryId
-          ? parseInt(applicationData.categoryId)
-          : existingApplication.category_id,
-        icon_id: iconId,
-        version: applicationData.version || existingApplication.version,
-        description:
-          applicationData.description || existingApplication.description,
-        ...fileData,
-      });
+      const uploadsDir = path.join(
+        process.cwd(),
+        'public',
+        'uploads',
+        'applications',
+      );
 
-      // Return updated application dengan relations
-      const updatedApplication = await this.applicationsRepository.findOne({
-        where: { id },
-        relations: ['category', 'icon'],
-      });
-
-      if (!updatedApplication) {
-        throw new HttpException(
-          'Application not found after update',
-          HttpStatus.NOT_FOUND,
-        );
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
       }
 
-      return updatedApplication;
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
+      const fileExt = path.extname(file.originalname);
+      const fileName = `app-${Date.now()}${fileExt}`;
+      const filePath = path.join(uploadsDir, fileName);
+
+      fs.writeFileSync(filePath, file.buffer);
+
+      fileData.file_name = file.originalname;
+      fileData.file_path = `uploads/applications/${fileName}`;
+      fileData.file_size = file.size;
+      fileData.file_type = this.getFileType(fileExt);
+    }
+
+    // Update application data
+    await this.applicationsRepository.update(id, {
+      title: applicationData.title || existingApplication.title,
+      full_name: applicationData.fullName || existingApplication.full_name,
+      category_id: applicationData.categoryId
+        ? parseInt(applicationData.categoryId)
+        : existingApplication.category_id,
+      icon_id: iconId, // Update icon_id
+      version: applicationData.version || existingApplication.version,
+      description:
+        applicationData.description || existingApplication.description,
+      ...fileData,
+    });
+
+    // Return updated application dengan relations
+    const updatedApplication = await this.applicationsRepository.findOne({
+      where: { id },
+      relations: ['category', 'icon'],
+    });
+
+    if (!updatedApplication) {
       throw new HttpException(
-        'Failed to update application',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        'Application not found after update',
+        HttpStatus.NOT_FOUND,
       );
     }
+
+    console.log('Application updated successfully:', {
+      id: updatedApplication.id,
+      icon_id: updatedApplication.icon_id,
+      icon: updatedApplication.icon
+    });
+
+    return updatedApplication;
+  } catch (error) {
+    console.error('Error updating application:', error);
+    if (error instanceof HttpException) {
+      throw error;
+    }
+    throw new HttpException(
+      'Failed to update application',
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
   }
+}
 
   async delete(id: number) {
     try {
