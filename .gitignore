@@ -4,6 +4,8 @@
 /build
 
 public/uploads/
+public/uploads/icons
+public/uploads/applications
 
 # Logs
 logs
