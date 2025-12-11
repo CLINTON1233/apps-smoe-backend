@@ -140,58 +140,58 @@ export class IconsService {
       );
     }
   }
-
+// Di fungsi createCustomIcon, perbaiki file_path:
 async createCustomIcon(file: Express.Multer.File, name: string, category: string = 'Custom') {
   try {
     if (!file) {
       throw new HttpException('File is required', HttpStatus.BAD_REQUEST);
     }
 
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'icons');
+    console.log('📦 File received:', {
+      originalname: file.originalname,
+      filename: file.filename,
+      mimetype: file.mimetype,
+      size: file.size,
+      path: file.path
+    });
 
-    // Ensure upload directory exists
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
+    // PERBAIKAN: Simpan hanya nama file, bukan path lengkap
+    const iconKey = file.filename;
+    const fileName = file.filename; // Hanya nama file saja
 
-    // Generate unique filename
-    const fileExt = path.extname(file.originalname);
-    const fileName = `icon-${Date.now()}${fileExt}`;
-    const filePath = path.join(uploadsDir, fileName);
+    console.log('💾 Saving to database:', {
+      name: name || file.originalname.replace(/\.[^/.]+$/, ""),
+      icon_key: iconKey,
+      file_name: fileName
+    });
 
-    // Save file
-    fs.writeFileSync(filePath, file.buffer);
-
-    const iconKey = fileName; 
-
-    // Create icon record
     const icon = this.iconsRepository.create({
       name: name || file.originalname.replace(/\.[^/.]+$/, ""),
       icon_key: iconKey,
       category: category || 'Custom',
       type: 'custom',
-      file_path: `uploads/icons/${fileName}`,
-      file_name: file.originalname,
+      file_path: `uploads/icons/${fileName}`, // Path relatif
+      file_name: fileName,
       file_size: file.size,
     });
 
     const savedIcon = await this.iconsRepository.save(icon);
     
-    // PERBAIKAN: Return data yang lengkap
-    return {
-      ...savedIcon,
-      icon_key: iconKey 
-    };
+    console.log('✅ Icon saved successfully:', savedIcon);
+    
+    return savedIcon;
   } catch (error) {
+    console.error('❌ Error in createCustomIcon:', error);
     if (error instanceof HttpException) {
       throw error;
     }
     throw new HttpException(
-      'Failed to create custom icon',
+      'Failed to create custom icon: ' + error.message,
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }
 }
+
 
   async delete(id: number) {
     try {

@@ -1,9 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import * as bodyParser from 'body-parser';
+import { join } from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Gunakan NestExpressApplication untuk akses static files
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Increase payload size limit for large file uploads
   app.use(bodyParser.json({ limit: '10gb' }));
@@ -23,8 +26,16 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Serve static files - UNTUK CUSTOM ICONS
+  app.useStaticAssets(join(__dirname, '..', 'public'), {
+    prefix: '/',
+  });
+
   const port = process.env.PORT || 5000;
   await app.listen(port);
-  console.log(`Application is running on: http://localhost:${port}`);
+  
+  console.log(`🚀 Application is running on: http://localhost:${port}`);
+  console.log(`📁 Static files served from: ${join(__dirname, '..', 'public')}`);
+  console.log(`📁 Icons available at: http://localhost:${port}/uploads/icons/`);
 }
 bootstrap();
