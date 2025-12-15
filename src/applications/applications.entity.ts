@@ -1,4 +1,3 @@
-// src/applications/applications.entity.ts
 import {
   Entity,
   Column,
@@ -26,13 +25,16 @@ export class Application {
   category_id: number;
 
   @Column({ name: 'icon_id', type: 'int', nullable: true })
-  icon_id: number | null; // PERBAIKAN DI SINI
+  icon_id: number | null;
 
   @Column({ name: 'file_name', type: 'varchar', length: 255, nullable: true })
   file_name: string;
 
   @Column({ name: 'file_path', type: 'varchar', length: 500, nullable: true })
-  file_path: string;
+  file_path: string; // Path di FTP Synology
+
+  @Column({ name: 'file_url', type: 'varchar', length: 500, nullable: true })
+  file_url: string; // URL publik untuk download
 
   @Column({ name: 'file_size', type: 'bigint', nullable: true })
   file_size: number;
@@ -48,10 +50,11 @@ export class Application {
 
   @Column({
     type: 'varchar',
-    default: 'active',
-    enum: ['active', 'inactive'],
+    length: 20,
+    default: 'license',
+    enum: ['license', 'paid'], // TAMBAH INI
   })
-  status: string;
+  status: string; // License atau Paid
 
   @Column({ name: 'download_count', type: 'int', default: 0 })
   download_count: number;
@@ -66,7 +69,7 @@ export class Application {
   @JoinColumn({ name: 'category_id' })
   category: Category;
 
-  @ManyToOne(() => Icon, (icon) => icon.id, { nullable: true }) // PERBAIKAN DI SINI
+  @ManyToOne(() => Icon, (icon) => icon.id, { nullable: true })
   @JoinColumn({ name: 'icon_id' })
-  icon: Icon | null; // PERBAIKAN DI SINI
+  icon: Icon | null;
 }

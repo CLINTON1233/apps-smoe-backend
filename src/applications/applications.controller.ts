@@ -216,6 +216,28 @@ export class ApplicationsController {
     }
   }
 
+  // Tambahkan endpoint baru untuk FTP download
+@Get(':id/ftp-download')
+async downloadFromFTP(@Param('id') id: string, @Res() res: Response) {
+  try {
+    const downloadInfo = await this.applicationsService.downloadFile(parseInt(id));
+    
+    return res.status(HttpStatus.OK).json({
+      status: 'success',
+      data: downloadInfo,
+      message: 'Download information retrieved',
+    });
+  } catch (error) {
+    const status = error.getStatus
+      ? error.getStatus()
+      : HttpStatus.INTERNAL_SERVER_ERROR;
+    return res.status(status).json({
+      status: 'error',
+      message: error.message || 'Failed to get download info',
+    });
+  }
+}
+
   @Get(':id/file-info')
   async getFileInfo(@Param('id') id: string, @Res() res: Response) {
     try {

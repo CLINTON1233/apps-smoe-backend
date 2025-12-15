@@ -27,6 +27,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/typeorm": "^11.0.0",
     "@types/multer": "^2.0.0",
+    "basic-ftp": "^5.0.5",
     "bcryptjs": "^3.0.3",
     "multer": "^2.0.2",
     "pg": "^8.16.3",
