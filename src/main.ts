@@ -17,9 +17,9 @@ async function bootstrap() {
     origin: [
       'http://localhost:3000',
       'http://localhost:3001',
-      'http://localhost:3002', // TAMBAH INI
+      'http://localhost:3002', 
       'http://127.0.0.1:3000',
-      'http://127.0.0.1:3002', // TAMBAH INI
+      'http://127.0.0.1:3002', 
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -34,8 +34,8 @@ async function bootstrap() {
   const port = process.env.PORT || 5000;
   await app.listen(port);
   
-  console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📁 Static files served from: ${join(__dirname, '..', 'public')}`);
-  console.log(`📁 Icons available at: http://localhost:${port}/uploads/icons/`);
+  console.log(` Application is running on: http://localhost:${port}`);
+  console.log(` Static files served from: ${join(__dirname, '..', 'public')}`);
+  console.log(` Icons available at: http://localhost:${port}/uploads/icons/`);
 }
 bootstrap();
