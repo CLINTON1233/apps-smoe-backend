@@ -155,6 +155,7 @@ async createCustomIcon(file: Express.Multer.File, name: string, category: string
       path: file.path
     });
 
+    
     // PERBAIKAN: Simpan hanya nama file, bukan path lengkap
     const iconKey = file.filename;
     const fileName = file.filename; // Hanya nama file saja
