@@ -165,15 +165,15 @@ async createCustomIcon(file: Express.Multer.File, name: string, category: string
       file_name: fileName
     });
 
-    const icon = this.iconsRepository.create({
-      name: name || file.originalname.replace(/\.[^/.]+$/, ""),
-      icon_key: iconKey,
-      category: category || 'Custom',
-      type: 'custom',
-      file_path: `uploads/icons/${fileName}`, // Path relatif
-      file_name: fileName,
-      file_size: file.size,
-    });
+   const icon = this.iconsRepository.create({
+    name: name || file.originalname.replace(/\.[^/.]+$/, ""),
+    icon_key: file.filename,
+    category: category || 'Custom',
+    type: 'custom',
+    file_path: `/uploads/icons/${file.filename}`, // PERBAIKAN: Tambahkan slash di awal
+    file_name: file.filename,
+    file_size: file.size,
+  });
 
     const savedIcon = await this.iconsRepository.save(icon);
     

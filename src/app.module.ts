@@ -14,6 +14,7 @@ import { IconsModule } from './icons/icons.module';
 import { Application } from './applications/applications.entity';
 import { Category } from './categories/categories.entity';
 import { Icon } from './icons/icons.entity';
+import { FtpService } from './shared/ftp.service';
 
 @Module({
   imports: [
@@ -36,6 +37,6 @@ import { Icon } from './icons/icons.entity';
     IconsModule,
   ],
   controllers: [AppController, UsersController, AuthController],
-  providers: [AppService, UsersService, AuthService],
+  providers: [AppService, UsersService, AuthService, FtpService], 
 })
 export class AppModule {}

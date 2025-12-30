@@ -1,3 +1,4 @@
+// src/applications/applications.entity.ts
 import {
   Entity,
   Column,
@@ -52,9 +53,9 @@ export class Application {
     type: 'varchar',
     length: 20,
     default: 'license',
-    enum: ['license', 'paid'], // TAMBAH INI
+    enum: ['license', 'paid'],
   })
-  status: string; // License atau Paid
+  status: string;
 
   @Column({ name: 'download_count', type: 'int', default: 0 })
   download_count: number;
@@ -72,4 +73,13 @@ export class Application {
   @ManyToOne(() => Icon, (icon) => icon.id, { nullable: true })
   @JoinColumn({ name: 'icon_id' })
   icon: Icon | null;
+
+  // Helper method untuk mendapatkan URL download
+  getDownloadUrl(): string {
+    if (this.file_url) {
+      return this.file_url;
+    }
+    // Fallback ke local file jika tidak ada FTP URL
+    return `/uploads/applications/${this.file_name}`;
+  }
 }
