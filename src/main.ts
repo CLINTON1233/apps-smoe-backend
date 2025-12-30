@@ -5,20 +5,15 @@ import * as bodyParser from 'body-parser';
 import { join } from 'path';
 
 async function bootstrap() {
-  // Gunakan NestExpressApplication untuk akses static files
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Increase payload size limit for large file uploads
   app.use(bodyParser.json({ limit: '10gb' }));
   app.use(bodyParser.urlencoded({ limit: '10gb', extended: true }));
 
-  // Enable CORS for frontend connection - TAMBAHKAN PORT 3002
   app.enableCors({
     origin: [
       'http://localhost:3000',
-      'http://localhost:3001',
       'http://localhost:3002', 
-      'http://127.0.0.1:3000',
       'http://127.0.0.1:3002', 
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
